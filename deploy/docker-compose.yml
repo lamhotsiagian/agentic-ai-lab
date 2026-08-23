@@ -1,0 +1,61 @@
+# docker-compose.yml  -  local mirror of the production topology
+services:
+  api:
+    build: { context: ., dockerfile: deploy/api.Dockerfile }
+    command: uvicorn agentops.api.app:app --host 0.0.0.0 --port 8080
+    environment:
+      AGENTOPS_ROLE: api                 # admits, streams, never executes runs
+      DATABASE_URL: postgresql://agentops:${PG_PASSWORD}@postgres:5432/agentops
+      OIDC_ISSUER: ${OIDC_ISSUER}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4317
+    ports: ["8080:8080"]
+    depends_on: [postgres, collector]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: { context: ., dockerfile: deploy/worker.Dockerfile }
+    command: python -m agentops.worker
+    environment:
+      AGENTOPS_ROLE: worker              # executes runs, holds provider keys
+      CONCURRENCY_CEILING: "20"          # derived from Little's law, not guessed
+      PROVIDER_PRIMARY: ${PROVIDER_PRIMARY}
+      PROVIDER_STANDBY: ${PROVIDER_STANDBY}
+      MODEL_MANIFEST_SHA: ${MODEL_MANIFEST_SHA}   # fail closed on version skew
+    deploy: { replicas: 2 }
+    depends_on: [postgres, collector]
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: agentops
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: agentops
+    volumes: ["pgdata:/var/lib/postgresql/data",
+              "./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentops"]
+      interval: 5s
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes: ["./deploy/otel.yaml:/etc/otel/config.yaml:ro"]
+
+  sandbox:
+    build: { context: ., dockerfile: deploy/sandbox.Dockerfile }
+    # The sandbox exists to run untrusted code. Everything here is a control.
+    network_mode: none
+    read_only: true
+    user: "65534:65534"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/work:rw,size=256m,noexec"]
+    mem_limit: 512m
+    pids_limit: 128
+
+volumes:
+  pgdata:
