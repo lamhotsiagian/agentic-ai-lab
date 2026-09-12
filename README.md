@@ -4,9 +4,6 @@ Runnable companion code for **Cracking Agentic AI System Design Interviews** (AI
 
 Every chapter maps to an executable module and an interactive Streamlit lab. The code runs entirely on your local machine using Ollama for language models, with deterministic offline fallback modes for immediate unit testing.
 
-> **Parity Invariant**: Every class and function printed in the book exists in this repository, verified automatically by `scripts/check_book_parity.py`.
-
-
 <img width="1241" height="1754" alt="preview-agentic-1-15_page-0001" src="https://github.com/user-attachments/assets/8a8cb2b5-1f29-4601-b25a-9beb87b6e3c0" />
 
 Ebook link: https://shop.beacons.ai/aiengineeringinsider/471d1489-df65-4cf7-a1b0-f62e2bef8e8d
@@ -88,5 +85,3 @@ The `shared/` package powers cross-cutting capabilities across all chapters:
 ## Multi-Tenancy & Security
 
 Every lab includes strict tenant partition isolation in the sidebar. Data and vector lookups are scoped to the active tenant ID, preventing cross-tenant leakage across all memory, retrieval, and storage subsystems.
-# agentic-ai-lab
-# agentic-ai-lab
